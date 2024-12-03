@@ -1,106 +1,171 @@
+import { collection, addDoc, deleteDoc, updateDoc, doc, getDocs,db } from "./firebase.js";
+
 var background;
 
-
-function addPost() {
-    var postTitle = document.getElementById("post-title");
-    var postDescrip = document.getElementById("post-description");
-    var posts = document.getElementById("posts");
+// Add Post
+async function addPost() {
+    const postTitle = document.getElementById("post-title");
+    const postDescrip = document.getElementById("post-description");
+    const posts = document.getElementById("posts");
 
     if (postTitle.value.trim() && postDescrip.value.trim()) {
-        posts.innerHTML += `
-        <div class="card mt-3">
-            <div class="card-header fontStyle">@Posts</div>
-            <div class="card-body" style="background-image:url(${background})">
-                <h5 class="card-title fontStyle" id="updatedPost">${postTitle.value}</h5>
-                <p class="card-text fontStyle" id="updatedDescription">${postDescrip.value}</p>
-            </div>
-            <div class="d-flex p-3 gap-3">
-                <button type="button" class="btn btn-success" onclick="editPost(event)">Edit</button>
-                <button type="button" class="btn btn-danger" onclick="confirmRemove(event)">Delete</button>
-            </div>
-        </div>`;
-        Swal.fire({
-            position: "center",
-            icon: "success",
-            title: "Your post has been creted",
-            showConfirmButton: false,
-            timer: 1500
-          });
-        
-        postTitle.value = "";
-        postDescrip.value = "";
+        try {
+            const docRef = await addDoc(collection(db, "posts"), {
+                title: postTitle.value,
+                description: postDescrip.value,
+                background: background || "",
+                createdAt: new Date(),
+            });
+
+            console.log("Document written with ID: ", docRef.id);
+
+            const newPost = `
+                <div class="card mt-3" data-id="${docRef.id}">
+                    <div class="card-header fontStyle">@Posts</div>
+                    <div class="card-body" style="background-image:url(${background})">
+                        <h5 class="card-title fontStyle" id="updatedPost">${postTitle.value}</h5>
+                        <p class="card-text fontStyle" id="updatedDescription">${postDescrip.value}</p>
+                    </div>
+                    <div class="d-flex p-3 gap-3">
+                        <button type="button" class="btn btn-success edit-btn">Edit</button>
+                        <button type="button" class="btn btn-danger delete-btn">Delete</button>
+                    </div>
+                </div>`;
+
+            posts.insertAdjacentHTML("beforeend", newPost);
+            Swal.fire({
+                position: "center",
+                icon: "success",
+                title: "Your post has been created",
+                showConfirmButton: false,
+                timer: 1500,
+            });
+
+            postTitle.value = "";
+            postDescrip.value = "";
+        } catch (e) {
+            console.error("Error adding document: ", e);
+        }
     } else {
         Swal.fire({
             title: "Empty input?",
             text: "Write something",
-            icon: "question"
+            icon: "question",
         });
     }
 }
-function confirmRemove(event) {
+
+// Confirm Remove
+async function confirmRemove(postCard, postId) {
     Swal.fire({
         title: "Do you want to delete this post?",
         showDenyButton: true,
         confirmButtonText: "Yes",
-        denyButtonText: "No"
-    }).then((result) => {
+        denyButtonText: "No",
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            event.target.parentNode.parentNode.remove();
-            Swal.fire("Done!", "Your post has been deleted.", "success");
+            try {
+                await deleteDoc(doc(db, "posts", postId));
+                postCard.remove();
+                Swal.fire("Done!", "Your post has been deleted.", "success");
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+            }
         } else if (result.isDenied) {
             Swal.fire("Post not deleted", "", "info");
         }
     });
 }
-async function editPost() {
+
+// Edit Post
+async function editPost(postCard, postId) {
+    const updatedPost = postCard.querySelector("#updatedPost");
+    const updatedDescription = postCard.querySelector("#updatedDescription");
+
     const { value: formValues } = await Swal.fire({
         title: "Update your post",
         html: `
-          <input id="swal-input1" class="swal2-input alert-input" placeholder="Write here..." >
-          <input id="swal-input2" class="swal2-input alert-input" placeholder="Write here..." >
+            <input id="swal-input1" class="swal2-input alert-input" placeholder="Write here..." value="${updatedPost.innerHTML}">
+            <input id="swal-input2" class="swal2-input alert-input" placeholder="Write here..." value="${updatedDescription.innerHTML}">
         `,
         focusConfirm: false,
         preConfirm: () => {
-          return [
-            document.getElementById("swal-input1").value,
-            document.getElementById("swal-input2").value
-          ];
+            return [
+                document.getElementById("swal-input1").value,
+                document.getElementById("swal-input2").value,
+            ];
+        },
+    });
+
+    if (formValues) {
+        try {
+            await updateDoc(doc(db, "posts", postId), {
+                title: formValues[0],
+                description: formValues[1],
+            });
+            updatedPost.innerHTML = formValues[0];
+            updatedDescription.innerHTML = formValues[1];
+            Swal.fire("Success", "Post updated successfully!", "success");
+        } catch (e) {
+            console.error("Error updating document: ", e);
         }
-      });
-      var updatedPost = document.getElementById("updatedPost")
-      var updatedDescription = document.getElementById("updatedDescription")
-      updatedPost.innerHTML = formValues[0]
-      updatedDescription.innerHTML = formValues[1]
+    }
 }
 
+// Load Posts
+async function loadPosts() {
+    const posts = document.getElementById("posts");
 
+    try {
+        const querySnapshot = await getDocs(collection(db, "posts"));
+        querySnapshot.forEach((doc) => {
+            const post = doc.data();
+            const newPost = `
+                <div class="card mt-3" data-id="${doc.id}">
+                    <div class="card-header fontStyle">@Posts</div>
+                    <div class="card-body" style="background-image:url(${post.background})">
+                        <h5 class="card-title fontStyle" id="updatedPost">${post.title}</h5>
+                        <p class="card-text fontStyle" id="updatedDescription">${post.description}</p>
+                    </div>
+                    <div class="d-flex p-3 gap-3">
+                        <button type="button" class="btn btn-success edit-btn">Edit</button>
+                        <button type="button" class="btn btn-danger delete-btn">Delete</button>
+                    </div>
+                </div>`;
+            posts.insertAdjacentHTML("beforeend", newPost);
+        });
+    } catch (e) {
+        console.error("Error loading documents: ", e);
+    }
+}
+
+// Handle image selection
 function selectImg(src, event) {
-    // Store the selected image as background
     background = src;
-
-    // Remove 'selectImg' class from all images
-    const allImages = document.querySelectorAll('.small-img');
-    allImages.forEach(img => img.classList.remove('selectImg'));
-
-    // Add 'selectImg' class to the clicked image for visual feedback
-    event.target.classList.add('selectImg');
+    document.querySelectorAll(".small-img").forEach((img) => img.classList.remove("selectImg"));
+    event.target.classList.add("selectImg");
 }
 
+// Event listeners for static buttons
+document.querySelector(".btn-primary").addEventListener("click", addPost);
 
+// Event delegation for dynamic buttons
+document.addEventListener("click", (event) => {
+    if (event.target.classList.contains("delete-btn")) {
+        const postCard = event.target.closest(".card");
+        const postId = postCard.getAttribute("data-id");
+        confirmRemove(postCard, postId);
+    } else if (event.target.classList.contains("edit-btn")) {
+        const postCard = event.target.closest(".card");
+        const postId = postCard.getAttribute("data-id");
+        editPost(postCard, postId);
+    }
+});
 
+// Event listeners for images
+document.querySelectorAll(".small-img").forEach((img) =>
+    img.addEventListener("click", (event) => selectImg(img.src, event))
+);
 
-
-
-
-
-
-
-
-
-
-// function selectImg(src){
-
-//     background =src
-
-//     event.target.className +=" selectImg"
-// }
+// Load posts on page load
+loadPosts();

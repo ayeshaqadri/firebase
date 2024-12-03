@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import { getAuth,createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail  } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import { getFirestore ,collection, addDoc, deleteDoc, updateDoc, doc, getDocs, } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyB4RWWruUA2VquqYVLR23ipUEoPIzlKFJc",
@@ -13,6 +14,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth =getAuth(app);
+const db = getFirestore(app);
 export{
-    getAuth,app,auth,createUserWithEmailAndPassword, signInWithEmailAndPassword , sendPasswordResetEmail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+    getAuth,app,auth,createUserWithEmailAndPassword, signInWithEmailAndPassword , sendPasswordResetEmail,db,getFirestore,collection, addDoc, deleteDoc, updateDoc, doc, getDocs 
 }
